@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trung tâm Điều hành Giao thông UTT</title>
+    <!-- Thêm Google Fonts -->
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+    <!-- Background Animated Blobs for Glassmorphism -->
+    <div class="bg-blobs">
+        <div class="blob blob-orange"></div>
+        <div class="blob blob-blue"></div>
+    </div>
+
+    <div class="dashboard">
+        <header class="topbar glass-panel">
+            <div class="brand">
+                <i class="fas fa-microchip"></i> UTT <span>TRUNG TÂM ĐIỀU HÀNH</span>
+            </div>
+            <div class="tabs">
+                <button class="tab-btn active" data-target="tab-intro" data-lab="4"><i class="fas fa-shield-alt"></i> HỆ
+                    THỐNG</button>
+                <button class="tab-btn locked" data-target="tab-lab1" data-lab="1" id="nav-lab1"><i
+                        class="fas fa-satellite-dish"></i> PHÂN HỆ 01</button>
+                <button class="tab-btn locked" data-target="tab-lab2" data-lab="2"><i class="fas fa-traffic-light"></i>
+                    PHÂN HỆ 02</button>
+                <button class="tab-btn locked" data-target="tab-lab3" data-lab="3"><i class="fas fa-door-open"></i> PHÂN
+                    HỆ
+                    03</button>
+                <button class="tab-btn" data-target="tab-help" data-lab="4"><i class="fas fa-question-circle"></i> TRỢ
+                    GIÚP</button>
+            </div>
+            <div class="connection-zone">
+                <div id="status-indicator" class="status-dot offline"></div>
+                <span id="status-text">MẤT KẾT NỐI</span>
+                <button id="btn-mqtt" class="btn-primary btn-glow"><i class="fas fa-link"></i> KẾT NỐI HỆ THỐNG</button>
+                <button id="btn-mqtt-off" class="btn-danger" style="display:none; padding: 10px;"
+                    onclick="mqtt.disconnect()"><i class="fas fa-power-off"></i></button>
+                <button id="btn-logs" class="btn-icon" onclick="ui.toggleLogs()"><i
+                        class="fas fa-list-alt"></i></button>
+                <button id="btn-settings" class="btn-icon" onclick="appSettings.toggleModal()"><i
+                        class="fas fa-cog"></i></button>
+            </div>
+        </header>
+
+        <main class="workspace">
+            <!-- TAB 0: HỆ THỐNG & ĐĂNG NHẬP -->
+            <section id="tab-intro" class="panel active">
+                <div class="login-wrapper">
+                    <div class="login-card glass-panel">
+                        <i class="fas fa-user-shield login-icon"></i>
+                        <h2 id="auth-title">XÁC THỰC BẢO MẬT</h2>
+                        <p id="auth-desc">Vui lòng đăng nhập để truy cập hệ thống quản trị.</p>
+                        <div class="control-form" id="auth-form">
+                            <div class="form-group">
+                                <label>Tài khoản</label>
+                                <input type="text" id="login-user" class="input-dark" placeholder="Nhập tài khoản"
+                                    value="admin">
+                            </div>
+                            <div class="form-group">
+                                <label>Mật khẩu</label>
+                                <div class="password-wrapper">
+                                    <input type="password" id="login-pass" class="input-dark"
+                                        placeholder="Nhập mật khẩu">
+                                    <i class="fas fa-eye toggle-password"
+                                        onclick="ui.togglePassword('login-pass', this)"></i>
+                                </div>
+                            </div>
+                            <button class="btn-action btn-glow" onclick="appAuth.login()">ĐĂNG NHẬP <i
+                                    class="fas fa-sign-in-alt"></i></button>
+                        </div>
+                        <button id="btn-logout" class="btn-danger" style="display:none; width: 100%; margin-top: 15px;"
+                            onclick="appAuth.logout()"><i class="fas fa-sign-out-alt"></i> ĐĂNG XUẤT</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 1: LAB 01 -->
+            <section id="tab-lab1" class="panel">
+                <div class="grid-2col">
+                    <div class="card glass-panel">
+                        <div class="card-header"><i class="fas fa-wave-square"></i> GIÁM SÁT CẢM BIẾN (ULTRASONIC & IR)
+                        </div>
+                        <div class="sensor-display">
+                            <div class="distance-ring glow-ring">
+                                <span class="dist-val" id="l1-dist">00.0</span>
+                                <span class="dist-unit">cm</span>
+                            </div>
+                            <div class="chart-container" style="width: 100%; height: 200px; margin-top: 10px;">
+                                <canvas id="distanceChart"></canvas>
+                            </div>
+                            <div class="ir-status-wrapper">
+                                <div class="ir-box">
+                                    <label>HỒNG NGOẠI 1</label>
+                                    <div id="l1-ir1" class="ir-val safe">TRỐNG</div>
+                                </div>
+                                <div class="ir-box">
+                                    <label>HỒNG NGOẠI 2</label>
+                                    <div id="l1-ir2" class="ir-val safe">TRỐNG</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card glass-panel">
+                        <div class="card-header"><i class="fas fa-sliders-h"></i> ĐIỀU KHIỂN THIẾT BỊ HẠ TẦNG</div>
+                        <div class="control-form">
+                            <div class="form-group">
+                                <label>Góc Quay Servo (0 - 180°): <span id="l1-servo-val"
+                                        class="accent-text">0°</span></label>
+                                <input type="range" id="l1-servo" min="0" max="180" value="0"
+                                    oninput="document.getElementById('l1-servo-val').innerText = this.value + '°'">
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>LED 1 (TM1637)</label>
+                                    <input type="number" id="l1-led1" placeholder="Số..." class="input-dark">
+                                </div>
+                                <div class="form-group">
+                                    <label>LED 2 (TM1637)</label>
+                                    <input type="number" id="l1-led2" placeholder="Số..." class="input-dark">
+                                </div>
+                            </div>
+                            <div class="form-group" style="margin-top: 5px;">
+                                <label>ĐÈN LÀN 1</label>
+                                <div class="traffic-light-controls" id="l1-lane1-ctrl">
+                                    <div class="tl-btn tl-red" data-color="r"
+                                        onclick="ui.selectTL('l1-lane1-ctrl', 'r')">ĐỎ</div>
+                                    <div class="tl-btn tl-yellow" data-color="y"
+                                        onclick="ui.selectTL('l1-lane1-ctrl', 'y')">VÀNG</div>
+                                    <div class="tl-btn tl-green" data-color="g"
+                                        onclick="ui.selectTL('l1-lane1-ctrl', 'g')">XANH</div>
+                                    <div class="tl-btn tl-off active" data-color="off"
+                                        onclick="ui.selectTL('l1-lane1-ctrl', 'off')">TẮT</div>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>ĐÈN LÀN 2</label>
+                                <div class="traffic-light-controls" id="l1-lane2-ctrl">
+                                    <div class="tl-btn tl-red" data-color="r"
+                                        onclick="ui.selectTL('l1-lane2-ctrl', 'r')">ĐỎ</div>
+                                    <div class="tl-btn tl-yellow" data-color="y"
+                                        onclick="ui.selectTL('l1-lane2-ctrl', 'y')">VÀNG</div>
+                                    <div class="tl-btn tl-green" data-color="g"
+                                        onclick="ui.selectTL('l1-lane2-ctrl', 'g')">XANH</div>
+                                    <div class="tl-btn tl-off active" data-color="off"
+                                        onclick="ui.selectTL('l1-lane2-ctrl', 'off')">TẮT</div>
+                                </div>
+                            </div>
+                            <button class="btn-action btn-glow" onclick="ctrl.l1Send()"><i
+                                    class="fas fa-paper-plane"></i> GỬI LỆNH ĐIỀU KHIỂN</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 2: LAB 02 -->
+            <section id="tab-lab2" class="panel">
+                <div class="grid-2col">
+                    <div class="card glass-panel">
+                        <div class="card-header"><i class="fas fa-road"></i> GIÁM SÁT LÀN ĐƯỜNG</div>
+                        <div class="traffic-monitors">
+                            <div class="lane">
+                                <h2>LÀN 1</h2>
+                                <div class="timer glow-text" id="l2-t1">00</div>
+                                <div class="light-fixture">
+                                    <div class="lamp r" id="l2-l1-R"></div>
+                                    <div class="lamp y" id="l2-l1-Y"></div>
+                                    <div class="lamp g" id="l2-l1-G"></div>
+                                </div>
+                                <button class="btn-outline" onclick="ctrl.l2Pri(1)"><i class="fas fa-star"></i> ƯU TIÊN
+                                    LÀN 1</button>
+                            </div>
+                            <div class="lane">
+                                <h2>LÀN 2</h2>
+                                <div class="timer glow-text" id="l2-t2">00</div>
+                                <div class="light-fixture">
+                                    <div class="lamp r" id="l2-l2-R"></div>
+                                    <div class="lamp y" id="l2-l2-Y"></div>
+                                    <div class="lamp g" id="l2-l2-G"></div>
+                                </div>
+                                <button class="btn-outline" onclick="ctrl.l2Pri(2)"><i class="fas fa-star"></i> ƯU TIÊN
+                                    LÀN 2</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card glass-panel">
+                        <div class="card-header"><i class="fas fa-cogs"></i> CẤU HÌNH & XỬ LÝ SỰ CỐ</div>
+                        <div class="control-form">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Thời gian Xanh (s)</label>
+                                    <input type="number" id="l2-cfg-g" value="5" min="1" class="input-dark">
+                                </div>
+                                <div class="form-group">
+                                    <label>Thời gian Vàng (s)</label>
+                                    <input type="number" id="l2-cfg-y" value="2" min="1" class="input-dark">
+                                </div>
+                            </div>
+                            <p class="nvs-status">Cấu hình thiết bị hiện tại: Xanh <strong
+                                    id="l2-current-g">--</strong>s,
+                                Vàng <strong id="l2-current-y">--</strong>s</p>
+                            <button class="btn-action" onclick="ctrl.l2Cfg()"><i class="fas fa-clock"></i> CẬP NHẬT THỜI
+                                GIAN</button>
+                            <hr class="divider">
+                            <label class="danger-label"><i class="fas fa-exclamation-triangle"></i> CHẾ ĐỘ KHẨN
+                                CẤP</label>
+                            <div class="form-row">
+                                <button class="btn-danger" onclick="ctrl.l2Emer('start')">KÍCH HOẠT</button>
+                                <button class="btn-secondary" onclick="ctrl.l2Emer('stop')">BÌNH THƯỜNG</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 3: LAB 03 -->
+            <section id="tab-lab3" class="panel">
+                <div class="grid-2col">
+                    <div class="card glass-panel">
+                        <div class="card-header"><i class="fas fa-car-side"></i> HỆ THỐNG THU PHÍ TỰ ĐỘNG (ETC)</div>
+                        <div class="etc-layout">
+                            <div class="etc-stats">
+                                <div class="stat-box glass-panel-inner">
+                                    <span>TỔNG LƯỢT XE</span>
+                                    <strong id="l3-car" class="glow-text">0</strong>
+                                </div>
+                                <div class="stat-box glass-panel-inner">
+                                    <span>KHOẢNG CÁCH</span>
+                                    <strong id="l3-dist">0 cm</strong>
+                                </div>
+                                <div class="stat-box glass-panel-inner">
+                                    <span>TRẠNG THÁI</span>
+                                    <strong id="l3-st" class="text-yellow">ĐÓNG</strong>
+                                </div>
+                            </div>
+                            <div class="etc-gate-visual">
+                                <div class="road"></div>
+                                <div class="barrier-system">
+                                    <div class="pillar"></div>
+                                    <div class="arm" id="l3-arm"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card glass-panel">
+                        <div class="card-header"><i class="fas fa-memory"></i> CẤU HÌNH CẢM BIẾN & ĐIỀU KHIỂN</div>
+                        <div class="control-form">
+                            <label class="accent-label">LƯU TRỮ CẤU HÌNH CỤC BỘ</label>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Ngưỡng nhận diện xe (3-100cm)</label>
+                                    <input type="number" id="l3-cfg-sensor" value="20" min="3" max="100"
+                                        class="input-dark">
+                                </div>
+                            </div>
+                            <p class="nvs-status">Ngưỡng cấu hình hiện tại của thiết bị: <strong
+                                    id="l3-current-cfg">--</strong> cm</p>
+                            <button class="btn-action" onclick="ctrl.l3Cfg()"><i class="fas fa-save"></i> LƯU CẤU HÌNH
+                                VÀO THIẾT BỊ</button>
+
+                            <hr class="divider">
+
+                            <label class="danger-label">ĐIỀU KHIỂN CỔNG</label>
+                            <div class="form-row">
+                                <button class="btn-action" onclick="ctrl.l3Cmd('open')" style="margin-top: 0;"><i
+                                        class="fas fa-arrow-up"></i> MỞ CỔNG</button>
+                                <button class="btn-danger" onclick="ctrl.l3Cmd('close')"><i
+                                        class="fas fa-arrow-down"></i> ĐÓNG CỔNG</button>
+                            </div>
+                            <button class="btn-secondary" onclick="ctrl.l3Cmd('reset')"
+                                style="width: 100%; margin-top: 10px;"><i class="fas fa-sync-alt"></i> RESET SỐ
+                                XE</button>
+                            <button class="btn-action btn-glow" onclick="ctrl.exportCSV()"
+                                style="margin-top: 10px; background: var(--green);">
+                                <i class="fas fa-file-csv"></i> XUẤT BÁO CÁO (CSV)
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 4: TRỢ GIÚP -->
+            <section id="tab-help" class="panel">
+                <div class="card glass-panel" style="max-width: 900px; margin: 0 auto;">
+                    <div class="card-header"><i class="fas fa-book"></i> SỔ TAY HƯỚNG DẪN SỬ DỤNG HỆ THỐNG</div>
+                    <div class="help-content">
+                        <h3><i class="fas fa-plug"></i> BƯỚC 1: KẾT NỐI VÀ ĐĂNG NHẬP</h3>
+                        <ul>
+                            <li><strong>Cấu hình máy chủ:</strong> Nhấp vào biểu tượng bánh răng <i
+                                    class="fas fa-cog"></i> ở góc trên bên phải để cài đặt địa chỉ Broker, Port (SSL) và
+                                Mật khẩu quản trị.</li>
+                            <li><strong>Kết nối:</strong> Nhấn nút <strong>KẾT NỐI HỆ THỐNG</strong>. Chờ đèn trạng thái
+                                chuyển sang màu xanh lá (HỆ THỐNG TRỰC TUYẾN).</li>
+                            <li><strong>Mở khóa:</strong> Tại tab HỆ THỐNG, nhập tài khoản (mặc định: admin) và mật khẩu
+                                (mặc định: 1234) để mở khóa các phân hệ chức năng.</li>
+                        </ul>
+
+                        <hr class="divider">
+
+                        <h3><i class="fas fa-satellite-dish"></i> PHÂN HỆ 01: GIÁM SÁT THIẾT BỊ ĐO LƯỜNG</h3>
+                        <p>Khu vực kiểm thử các cảm biến đo lường và cơ cấu chấp hành cơ bản:</p>
+                        <ul>
+                            <li><strong>Giám sát cảm biến:</strong> Theo dõi khoảng cách từ cảm biến siêu âm (hiển thị
+                                dạng vòng tròn) và trạng thái có/không có vật cản của 2 cảm biến hồng ngoại.</li>
+                            <li><strong>Điều khiển động cơ (Servo):</strong> Kéo thanh trượt để thay đổi góc quay từ 0°
+                                đến 180°.</li>
+                            <li><strong>Hiển thị LED 7 thanh:</strong> Nhập số nguyên vào ô LED 1, LED 2.</li>
+                            <li><strong>Lưu ý:</strong> Sau khi thay đổi thông số, phải nhấn nút <strong><i
+                                        class="fas fa-paper-plane"></i> GỬI LỆNH ĐIỀU KHIỂN</strong> để tín hiệu truyền
+                                xuống thiết bị.</li>
+                        </ul>
+
+                        <hr class="divider">
+
+                        <h3><i class="fas fa-traffic-light"></i> PHÂN HỆ 02: ĐIỀU KHIỂN GIAO THÔNG THÔNG MINH</h3>
+                        <p>Khu vực quản lý và điều phối đèn tín hiệu tại nút giao thông 2 làn:</p>
+                        <ul>
+                            <li><strong>Giám sát nhịp đèn:</strong> Xem đồng hồ đếm ngược và trạng thái Đỏ - Vàng - Xanh
+                                của Làn 1 và Làn 2 theo thời gian thực.</li>
+                            <li><strong>Cài đặt thời gian:</strong> Nhập số giây cho đèn Xanh và đèn Vàng, sau đó nhấn
+                                <strong>CẬP NHẬT THỜI GIAN</strong>. Hệ thống sẽ tự động tính toán thời gian đèn Đỏ
+                                tương ứng.</li>
+                            <li><strong>Điều khiển ưu tiên:</strong> Nhấn nút <strong><i class="fas fa-star"></i> ƯU
+                                    TIÊN LÀN</strong> để ép hệ thống chuyển ngay sang đèn Xanh cho làn được chọn (dành
+                                cho xe ưu tiên hoặc kẹt xe).</li>
+                            <li><strong>Chế độ khẩn cấp:</strong> Khi có sự cố, nhấn <strong>KÍCH HOẠT</strong> để toàn
+                                bộ các làn chuyển sang trạng thái nháy Vàng cảnh báo liên tục.</li>
+                        </ul>
+
+                        <hr class="divider">
+
+                        <h3><i class="fas fa-door-open"></i> PHÂN HỆ 03: HỆ THỐNG THU PHÍ TỰ ĐỘNG (ETC)</h3>
+                        <p>Khu vực mô phỏng trạm thu phí không dừng thông minh:</p>
+                        <ul>
+                            <li><strong>Giám sát trạm:</strong> Theo dõi khoảng cách xe đang tiến vào, trạng thái của
+                                Barie (Đóng / Đang mở / Mở / Chờ xe qua) và Tổng lượt xe đã lưu thông.</li>
+                            <li><strong>Cấu hình khoảng cách nhận diện:</strong> Nhập khoảng cách (từ 3 đến 100cm) để
+                                thiết lập tầm quét xe của trạm. Nhấn <strong>LƯU CẤU HÌNH VÀO THIẾT BỊ</strong> để ghi
+                                thẳng vào bộ nhớ vĩnh viễn (Flash/NVS) của vi điều khiển, giúp không bị mất cài đặt khi
+                                tắt nguồn.</li>
+                            <li><strong>Điều khiển cổng thủ công:</strong> Dùng nút <strong>MỞ CỔNG</strong> hoặc
+                                <strong>ĐÓNG CỔNG</strong> khi cần can thiệp bằng tay (như khi xe không hợp lệ nhưng cần
+                                qua).</li>
+                            <li><strong>Reset bộ đếm:</strong> Nhấn <strong>RESET SỐ XE</strong> để đưa tổng lượt xe về
+                                0 (Thường dùng khi bắt đầu ca trực mới).</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer class="app-footer glass-panel">
+            <div class="footer-content">
+                <div class="university">
+                    <i class="fas fa-university"></i> Trường Đại học Công nghệ Giao thông Vận tải
+                </div>
+                <div class="designers">
+                    <span><strong>Nhóm Phát Triển:</strong> Ngô Viết Thái (73DCDT22101) &bull; Trần Duy Thanh
+                        (73DCDT22238)</span>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <!-- EVENT LOGS DRAWER -->
+    <div id="logs-drawer" class="logs-drawer glass-panel">
+        <div class="drawer-header">
+            <h2><i class="fas fa-list-alt"></i> NHẬT KÍ SỰ KIỆN</h2>
+            <button class="btn-icon" onclick="ui.toggleLogs()"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="drawer-body" id="logs-container">
+            <!-- Logs will be prepended here -->
+        </div>
+        <div class="drawer-footer">
+            <button class="btn-secondary" onclick="logger.clear()"><i class="fas fa-trash"></i> Xóa Log</button>
+            <button class="btn-action" style="margin-top:0; background: var(--green);" onclick="logger.export()"><i
+                    class="fas fa-file-csv"></i> Xuất CSV</button>
+        </div>
+    </div>
+
+    <!-- MODAL SETTINGS -->
+    <div id="settings-modal" class="modal-overlay">
+        <div class="modal-content glass-panel">
+            <div class="modal-header">
+                <h2><i class="fas fa-cogs"></i> CÀI ĐẶT HỆ THỐNG</h2>
+                <button class="btn-icon" onclick="appSettings.toggleModal()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body control-form">
+                <label class="accent-label">CẤU HÌNH MÁY CHỦ KẾT NỐI (BROKER)</label>
+                <div class="form-group">
+                    <label>Địa chỉ máy chủ (Broker Address)</label>
+                    <input type="text" id="cfg-broker" class="input-dark" placeholder="VD: broker.hivemq.com">
+                </div>
+                <div class="form-group">
+                    <label>Cổng kết nối (Port SSL)</label>
+                    <input type="number" id="cfg-port" class="input-dark" placeholder="8884">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Tên đăng nhập (Username)</label>
+                        <input type="text" id="cfg-user" class="input-dark" placeholder="Không bắt buộc">
+                    </div>
+                    <div class="form-group">
+                        <label>Mật khẩu (Password)</label>
+                        <div class="password-wrapper">
+                            <input type="password" id="cfg-pass" class="input-dark" placeholder="Không bắt buộc">
+                            <i class="fas fa-eye toggle-password" onclick="ui.togglePassword('cfg-pass', this)"></i>
+                        </div>
+                    </div>
+                </div>
+                <hr class="divider">
+                <label class="accent-label">CẤU HÌNH QUẢN TRỊ VIÊN</label>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Mật khẩu quản trị</label>
+                        <div class="password-wrapper">
+                            <input type="password" id="cfg-admin-pass" class="input-dark" placeholder="Mặc định: 1234">
+                            <i class="fas fa-eye toggle-password"
+                                onclick="ui.togglePassword('cfg-admin-pass', this)"></i>
+                        </div>
+                    </div>
+                </div>
+                <button class="btn-action btn-glow" onclick="appSettings.saveConfig()"><i class="fas fa-save"></i> LƯU
+                    CẤU HÌNH & KẾT NỐI LẠI</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast-container"></div>
+    <script src="script.js"></script>
+</body>
+
+</html>
