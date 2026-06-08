@@ -490,6 +490,19 @@ button:active {
     box-shadow: 0 0 15px rgba(239, 68, 68, 0.5);
 }
 
+.btn-warning {
+    background: rgba(245, 158, 11, 0.2);
+    color: var(--yellow);
+    border: 1px solid var(--yellow);
+    flex: 1;
+}
+
+.btn-warning:hover {
+    background: var(--yellow);
+    color: white;
+    box-shadow: 0 0 15px rgba(245, 158, 11, 0.5);
+}
+
 .btn-secondary {
     background: var(--bg-input);
     color: white;
