@@ -358,8 +358,17 @@ const ctrl = {
             soundManager.siren();
             logger.log("L2: KÍCH HOẠT CHẾ ĐỘ KHẨN CẤP!", "error");
         } else {
-            logger.log("L2: Tắt chế độ khẩn cấp", "success");
+            logger.log("L2: Khôi phục chế độ bình thường", "success");
         }
+    },
+    l2NightMode: (action) => {
+        let actualAction = action;
+        if (action === 'toggle') {
+            const btn = document.getElementById('btn-night');
+            actualAction = btn.classList.contains('active-mode') ? 'stop' : 'start';
+        }
+        mqtt.pub(CFG.top.l2s, { type: "night_mode", action: actualAction });
+        logger.log("L2: Chuyển chế độ Đêm (Nháy vàng) -> " + actualAction.toUpperCase(), "warning");
     },
     l2Pri: (lane) => {
         mqtt.pub(CFG.top.l2s, { type: "priority", lane });
@@ -434,6 +443,21 @@ const ui = {
 
         if (data.cfg_g !== undefined) document.getElementById('l2-current-g').innerText = data.cfg_g;
         if (data.cfg_y !== undefined) document.getElementById('l2-current-y').innerText = data.cfg_y;
+
+        if (data.mode !== undefined) {
+            const btnNight = document.getElementById('btn-night');
+            if (btnNight) {
+                if (data.mode === 'night') {
+                    btnNight.classList.add('active-mode');
+                    btnNight.style.boxShadow = "0 0 20px var(--yellow)";
+                    btnNight.innerText = "TẮT CHẾ ĐỘ ĐÊM";
+                } else {
+                    btnNight.classList.remove('active-mode');
+                    btnNight.style.boxShadow = "none";
+                    btnNight.innerText = "CHẾ ĐỘ ĐÊM";
+                }
+            }
+        }
     },
     renderL3: (data) => {
         if (data.car !== undefined) document.getElementById('l3-car').innerText = data.car;
