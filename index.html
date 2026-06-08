@@ -212,12 +212,12 @@
                             <button class="btn-action" onclick="ctrl.l2Cfg()"><i class="fas fa-clock"></i> CẬP NHẬT THỜI
                                 GIAN</button>
                             <hr class="divider">
-                            <label class="danger-label"><i class="fas fa-exclamation-triangle"></i> CHẾ ĐỘ KHẨN
-                                CẤP</label>
+                            <label class="danger-label"><i class="fas fa-exclamation-triangle"></i> XỬ LÝ SỰ CỐ / ĐẶC BIỆT</label>
                             <div class="form-row">
-                                <button class="btn-danger" onclick="ctrl.l2Emer('start')">KÍCH HOẠT</button>
-                                <button class="btn-secondary" onclick="ctrl.l2Emer('stop')">BÌNH THƯỜNG</button>
+                                <button class="btn-danger" onclick="ctrl.l2Emer('start')">KHẨN CẤP</button>
+                                <button class="btn-warning" id="btn-night" onclick="ctrl.l2NightMode('toggle')">CHẾ ĐỘ ĐÊM</button>
                             </div>
+                            <button class="btn-secondary" style="width: 100%; margin-top: 10px;" onclick="ctrl.l2Emer('stop')">KHÔI PHỤC BÌNH THƯỜNG</button>
                         </div>
                     </div>
                 </div>
@@ -260,7 +260,7 @@
                             <div class="form-row">
                                 <div class="form-group">
                                     <label>Ngưỡng nhận diện xe (3-100cm)</label>
-                                    <input type="number" id="l3-cfg-sensor" value="8" min="3" max="100"
+                                    <input type="number" id="l3-cfg-sensor" value="20" min="3" max="100"
                                         class="input-dark">
                                 </div>
                             </div>
